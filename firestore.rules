@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 사용자 인증 확인 함수
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // 요청한 문서가 해당 사용자의 것인지 확인하는 함수
+    function isUserOwned(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 공통 필드 타입 검증 함수들
+    function isValidString(value) {
+      return value is string && value.size() >= 0;
+    }
+    
+    function isValidNumber(value) {
+      return value is number && value >= 0;
+    }
+    
+    function isValidBoolean(value) {
+      return value is bool;
+    }
+    
+    function isValidStringArray(value) {
+      return value is list && value.size() >= 0;
+    }
+
+    // 1. Albums 컬렉션 규칙
+    match /Albums/{userId}/User_albums/{albumId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.pid)
+        && isValidString(request.resource.data.platform)
+        && isValidString(request.resource.data.name)
+        && isValidString(request.resource.data.coverImageUrl)
+        && isValidStringArray(request.resource.data.artists)
+        && isValidStringArray(request.resource.data.tracks)
+        && isValidNumber(request.resource.data.releasedDate)
+        && isValidNumber(request.resource.data.trackCount);
+    }
+
+    // 2. Infos 컬렉션 규칙
+    match /Infos/{userId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && request.resource.data.connectedPlatforms is list;
+    }
+
+    // 3. Playlists 컬렉션 규칙
+    match /Playlists/{userId}/User_playlists/{playlistId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.pid)
+        && isValidString(request.resource.data.platform)
+        && isValidString(request.resource.data.name)
+        && isValidString(request.resource.data.description)
+        && isValidString(request.resource.data.coverImageUrl)
+        && isValidStringArray(request.resource.data.tracks)
+        && isValidString(request.resource.data.owner)
+        && isValidNumber(request.resource.data.trackCount);
+    }
+
+    // 4. Settings 컬렉션 규칙
+    match /Settings/{userId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidBoolean(request.resource.data.isDarkMode)
+        && isValidBoolean(request.resource.data.notificationEnabled)
+        && isValidString(request.resource.data.language);
+    }
+
+    // 5. Tokens 컬렉션 규칙
+    match /Tokens/{userId}/User_tokens/{platform} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.accessToken)
+        && isValidString(request.resource.data.refreshToken);
+    }
+
+    // 6. Tracks 컬렉션 규칙
+    match /Tracks/{userId}/User_tracks/{trackId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.pid)
+        && isValidString(request.resource.data.platform)
+        && isValidString(request.resource.data.name)
+        && isValidString(request.resource.data.albumArtUrl)
+        && isValidStringArray(request.resource.data.artists)
+        && isValidString(request.resource.data.albumName)
+        && isValidNumber(request.resource.data.durationMs);
+    }
+
+    // 7. Artists 컬렉션 규칙
+    match /Artists/{userId}/User_artists/{artistId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.pid)
+        && isValidString(request.resource.data.platform)
+        && isValidString(request.resource.data.name)
+        && isValidString(request.resource.data.thumbnailUrl)
+        && isValidStringArray(request.resource.data.genres)
+        && isValidNumber(request.resource.data.followerCount)
+        && isValidString(request.resource.data.externalUrl)
+        && isValidNumber(request.resource.data.popularity);
+    }
+
+    // 8. UserContentData 컬렉션 규칙
+    match /UserContentData/{userId} {
+      allow read: if isUserOwned(userId);
+      allow write: if isUserOwned(userId)
+        && isValidString(request.resource.data.uid)
+        && request.resource.data.likedTracks is list
+        && request.resource.data.playlists is list
+        && request.resource.data.albums is list
+        && request.resource.data.artists is list;
+    }
+  }
+}

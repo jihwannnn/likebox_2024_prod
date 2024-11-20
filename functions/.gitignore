@@ -1,0 +1,3 @@
+node_modules/
+*.local
+.env.likebox-2024-test
