@@ -19,10 +19,6 @@ const getTracks = onCall({ region: "asia-northeast3" }, async (request) => {
     const uid = auth.uid;
     const trackIds = request.data.trackIds;
 
-    if (!trackIds) {
-      throw new https.HttpsError("invalid-argument", "유효한 ISRC 배열이 필요합니다.");
-    }
-
     // 트랙 목록 조회
     const tracks = await trackService.getTracks(uid, trackIds);
 

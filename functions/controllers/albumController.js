@@ -21,15 +21,8 @@ const getAlbum = onCall({ region: "asia-northeast3" }, async (request) => {
     const uid = auth.uid;
     const albumId = request.data.albumId;
 
-    if (!albumId) {
-      throw new https.HttpsError("invalid-argument", "앨범 UPC가 필요합니다.");
-    }
-
     // 앨범 조회
     const album = await albumService.getAlbum(uid, albumId);
-    if (!album) {
-      throw new https.HttpsError("not-found", "앨범을 찾을 수 없습니다.");
-    }
 
     // to be fix
     const albumwithTracks = await addTracksToAlbum(uid, album)
@@ -56,10 +49,6 @@ const getAlbums = onCall({ region: "asia-northeast3" }, async (request) => {
 
     const uid = auth.uid;
     const albumIds = request.data.albumIds;
-
-    if (!albumIds) {
-      throw new https.HttpsError("invalid-argument", "유효한 UPC 배열이 필요합니다.");
-    }
 
     // 앨범 목록 조회
     const albums = await albumService.getAlbums(uid, albumIds);

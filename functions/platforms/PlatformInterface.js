@@ -23,9 +23,27 @@ class PlatformInterface {
     throw new Error("Method getPlaylists() must be implemented in the subclass.");
   }
 
-  async getAlbums(ccessToken) {
+  async getAlbums(accessToken) {
     throw new Error("Method getAlbums() must be implemented in the subclass.")
   }
+
+  async getArtists(accessToken) {
+    
+  }
+
+  async exportTracks(tracks, accessToken) {
+
+  }
+
+  async exportAlbums(albums, accessToken) {
+
+  }
+
+  async exportPlaylists(playlists, accessToken){
+
+  }
+
+
 }
 
 

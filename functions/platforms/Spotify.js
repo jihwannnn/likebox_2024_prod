@@ -7,11 +7,13 @@ const Token = require("../models/Token");
 const { Track, Playlist, Album, Artist } = require("../models/Content");
 const { 
   SPOTIFY_CLIENT_ID, 
+  FOR_SERVER_REDIRECT_URI,
   FOR_CLIENT_REDIRECT_URI
 } = require("../params");
 const convertDateToInt = require("../utils/convertDateToInt");
 
 const PLATFORM_STRING = "SPOTIFY";
+const LikeBox = "LikeBox";
 
 class Spotify extends Platform {
   // 인증 관련 메소드
@@ -26,14 +28,17 @@ class Spotify extends Platform {
     })}`;
   }
 
+
   async exchangeCodeForToken(uid, authCode) {
     try {
       logPlatformStart(PLATFORM_STRING, "exchangeCodeForToken");
 
       const clientRedirectUri = FOR_CLIENT_REDIRECT_URI.value();
+      const serverRedirectUri = FOR_SERVER_REDIRECT_URI.value();
       
       logger.info("Debug URIs:", {
         clientRedirectUri,
+        serverRedirectUri,
         authCode: authCode?.substring(0, 10) + "..." // 일부만 로깅
       });
 
@@ -64,6 +69,7 @@ class Spotify extends Platform {
           usedRedirectUri: FOR_CLIENT_REDIRECT_URI.value(),
           registeredUris: [
             "com.example.likebox://callback",
+            "https://asia-northeast3-likebox-2024-test.cloudfunctions.net/generateToken"
           ]
         });
       }
@@ -165,7 +171,7 @@ class Spotify extends Platform {
     );
   }
 
-  async getFollowedArtists(accessToken) {
+  async getArtists(accessToken) {
     try {
       logPlatformStart(PLATFORM_STRING, "getFollowedArtists");
 
@@ -397,6 +403,233 @@ class Spotify extends Platform {
       return { allAlbums, allTracks };
     } catch (error) {
       logPlatformError(PLATFORM_STRING, "getAlbums", error);
+      throw error;
+    }
+  }
+
+
+  // for exports
+
+  async searchTracksByIsrc(isrcs, accessToken) {
+    try {
+      logPlatformStart(PLATFORM_STRING, "searchTracksByIsrc");
+      
+      const spotifyIdsSet = new Set();
+      
+      for (const isrc of isrcs) {
+        try {
+          const response = await axios.get(
+            `https://api.spotify.com/v1/search?q=isrc:${isrc}&type=track&limit=1`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            }
+          );
+  
+          if (response.data.tracks.items.length > 0) {
+            const spotifyTrack = response.data.tracks.items[0];
+            spotifyIdsSet.add(spotifyTrack.id);
+          }
+        } catch (error) {
+          logger.error(`Error searching track with ISRC ${isrc}:`, error);
+        }
+      }
+  
+      logPlatformFinish(PLATFORM_STRING, "searchTracksByIsrc");
+      return Array.from(spotifyIdsSet);
+    } catch (error) {
+      logPlatformError(PLATFORM_STRING, "searchTracksByIsrc", error);
+      throw error;
+    }
+  }
+  
+  async searchAlbumsByUpc(upcs, accessToken) {
+    try {
+      logPlatformStart(PLATFORM_STRING, "searchAlbumsByUpc");
+      
+      const spotifyIdsSet = new Set();
+      
+      for (const upc of upcs) {
+        try {
+          const response = await axios.get(
+            `https://api.spotify.com/v1/search?q=upc:${upc}&type=album&limit=1`,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` }
+            }
+          );
+  
+          if (response.data.albums.items.length > 0) {
+            const spotifyAlbum = response.data.albums.items[0];
+            spotifyIdsSet.add(spotifyAlbum.id);
+          }
+        } catch (error) {
+          logger.error(`Error searching album with UPC ${upc}:`, error);
+        }
+      }
+  
+      logPlatformFinish(PLATFORM_STRING, "searchAlbumsByUpc");
+      return Array.from(spotifyIdsSet);
+    } catch (error) {
+      logPlatformError(PLATFORM_STRING, "searchAlbumsByUpc", error);
+      throw error;
+    }
+  }
+  
+  async exportTracks(tracks, accessToken) {
+    try {
+      logPlatformStart(PLATFORM_STRING, "saveTracksToLibrary");
+      
+      const isrcs = tracks.map(track => track.id);
+      
+      const trackIds = await this.searchTracksByIsrc(isrcs, accessToken);
+  
+      const chunkSize = 50;
+      for (let i = 0; i < trackIds.length; i += chunkSize) {
+        const chunk = trackIds.slice(i, i + chunkSize);
+        try {
+          await axios.put(
+            'https://api.spotify.com/v1/me/tracks',
+            { ids: chunk },
+            {
+              headers: { 
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (error) {
+          logger.error(`Error saving tracks chunk ${i/chunkSize + 1}:`, error);
+          if (error.response?.status === 429) {
+            const retryAfter = parseInt(error.response.headers['retry-after']) || 1;
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            i -= chunkSize;
+          }
+        }
+      }
+  
+      logPlatformFinish(PLATFORM_STRING, "saveTracksToLibrary");
+    } catch (error) {
+      logPlatformError(PLATFORM_STRING, "saveTracksToLibrary", error);
+      throw error;
+    }
+  }
+  
+  async exportAlbums(albums, accessToken) {
+    try {
+      logPlatformStart(PLATFORM_STRING, "saveAlbumsToLibrary");
+  
+      const upcs = albums.map(album => album.id);
+      
+      const albumIds = await this.searchAlbumsByUpc(upcs, accessToken);
+  
+
+      const chunkSize = 50;
+      for (let i = 0; i < albumIds.length; i += chunkSize) {
+        const chunk = albumIds.slice(i, i + chunkSize);
+        try {
+          await axios.put(
+            'https://api.spotify.com/v1/me/albums',
+            { ids: chunk },
+            {
+              headers: { 
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (error) {
+          logger.error(`Error saving albums chunk ${i/chunkSize + 1}:`, error);
+          if (error.response?.status === 429) { 
+            const retryAfter = parseInt(error.response.headers['retry-after']) || 1;
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            i -= chunkSize;
+          }
+        }
+      }
+  
+      logPlatformFinish(PLATFORM_STRING, "saveAlbumsToLibrary");
+    } catch (error) {
+      logPlatformError(PLATFORM_STRING, "saveAlbumsToLibrary", error);
+      throw error;
+    }
+  }
+
+  async exportPlaylists(playlists, accessToken) {
+    try {
+      logPlatformStart(PLATFORM_STRING, "createPlaylists");
+  
+      for (const playlist of playlists) {
+        try {
+
+          const createResponse = await axios.post(
+            'https://api.spotify.com/v1/me/playlists',
+            {
+              name: playlist.name + LikeBox,
+              description: playlist.description || '',
+              public: false
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          const newPlaylistId = createResponse.data.id;
+          const trackIsrcs = playlist.tracks;
+          const spotifyTrackIds = await this.searchTracksByIsrc(trackIsrcs, accessToken);
+
+          if (spotifyTrackIds.length > 0) {
+
+            const chunkSize = 100;
+            for (let i = 0; i < spotifyTrackIds.length; i += chunkSize) {
+              const chunk = spotifyTrackIds.slice(i, i + chunkSize);
+              
+              try {
+                await axios.post(
+                  `https://api.spotify.com/v1/playlists/${newPlaylistId}/tracks`,
+                  {
+                    uris: chunk.map(id => `spotify:track:${id}`)
+                  },
+                  {
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json'
+                    }
+                  }
+                );
+                
+                // API 속도 제한 고려
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+              } catch (error) {
+                logger.error(`Error adding tracks to playlist ${playlist.name}:`, error);
+                if (error.response?.status === 429) {
+                  const retryAfter = parseInt(error.response.headers['retry-after']) || 1;
+                  await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                  i -= chunkSize;
+                }
+              }
+            }
+          }
+          
+          // 각 플레이리스트 처리 사이에 약간의 지연
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (error) {
+          logger.error(`Error creating playlist ${playlist.name}:`, error);
+        }
+      }
+  
+      logPlatformFinish(PLATFORM_STRING, "createPlaylists");
+    } catch (error) {
+      logPlatformError(PLATFORM_STRING, "createPlaylists", error);
       throw error;
     }
   }

@@ -14,23 +14,17 @@ const getLikedContent = onCall({ region: "asia-northeast3" }, async (request) =>
    logControllerStart("getSavedContent");
 
    const auth = request.auth;
+
    if (!auth) {
      throw new https.HttpsError("unauthenticated", "사용자가 인증되지 않았습니다.");
    }
 
    const uid = auth.uid;
-   const { platform, contentType } = request.data;
-
-   if (!platform) {
-     throw new https.HttpsError("invalid-argument", "플랫폼 정보가 필요합니다.");
-   }
-
-   if (!type) {
-     throw new https.HttpsError("invalid-argument", "유효한 콘텐츠 타입이 필요합니다.");
-   }
+   const platform= request.data.platform;
+   const contentType = request.data.contentType;
 
    const contentData = await userContentDataService.getContentData(uid);
-
+   
    if (!contentData) {
      return { success: false, data: null }
    }
@@ -64,6 +58,67 @@ const getLikedContent = onCall({ region: "asia-northeast3" }, async (request) =>
  }
 });
 
+const getContentCount = onCall({ region: "asia-northeast3" }, async (request) => {
+  try {
+    logControllerStart("getContentCount");
+    
+    const auth = request.auth;
+    
+    if (!auth) {
+      throw new https.HttpsError("unauthenticated", "사용자가 인증되지 않았습니다.");
+    }
+    
+    const uid = auth.uid;
+    const platform = request.data.platform;
+    const contentType = request.data.contentType;
+
+    // ContentData 가져오기
+    const contentData = await userContentDataService.getContentData(uid);
+    if (!contentData) {
+      return { success: true, data: 0 };
+    }
+
+    let count = 0;
+    
+    switch (contentType) {
+      case "TRACK": {
+        const trackIds = contentData.getLikedTracksByPlatform(platform);
+        count = trackIds.length;
+        break;
+      }
+      
+      case "PLAYLIST": {
+        const playlistIds = contentData.getPlaylistsByPlatform(platform);
+        count = playlistIds.length;
+        break;
+      }
+      
+      case "ALBUM": {
+        const albumIds = contentData.getAlbumsByPlatform(platform);
+        count = albumIds.length;
+        break;
+      }
+      
+      case "ARTIST": {
+        const artistIds = contentData.getArtistsByPlatform(platform);
+        count = artistIds.length;
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown content type: ${contentType}`);
+    }
+
+    logControllerFinish("getContentCount");
+    return { success: true, data: count };
+    
+  } catch (error) {
+    logControllerError("getContentCount", error);
+    throw error;
+  }
+});
+
 module.exports = {
- getLikedContent
+ getLikedContent,
+ getContentCount
 };

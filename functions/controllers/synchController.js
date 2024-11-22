@@ -104,7 +104,7 @@ const synchContent = onCall({ region: "asia-northeast3" }, async (request) => {
 
       case "ARTIST": {
         // 팔로우한 아티스트 목록 가져오기
-        const allArtists = await platformInstance.getFollowedArtists(tokens.accessToken);
+        const allArtists = await platformInstance.getArtists(tokens.accessToken);
         const savedContent = contentData.getArtistsByPlatform(platform);
         const artistIds = allArtists.map(artist => artist.id);
        
@@ -142,6 +142,86 @@ const synchContent = onCall({ region: "asia-northeast3" }, async (request) => {
   }
 });
 
+
+
+const exportContent = onCall({ region: "asia-northeast3" }, async (request) => {
+  try {
+    logControllerStart("exportContent");
+
+    // 인증 확인
+    const auth = request.auth;
+    if (!auth) {
+      throw new https.HttpsError("unauthenticated", "사용자가 인증되지 않았습니다.");
+    }
+
+    // 데이터 초기화
+    const uid = auth.uid;
+    const contentType = request.data.contentType;
+    const platform = request.data.platform;
+
+    // 컨텐츠 데이터와 토큰 가져오기
+    let contentData = await userContentDataService.getContentData(uid);
+    const tokens = await tokenService.getToken(uid, platform);
+    const platformInstance = PlatformFactory.getPlatform(platform);
+
+    switch (contentType) {
+      case "TRACK": {
+        // contentData에서 모든 트랙 ISRC 가져오기
+        const trackIsrcs = contentData.likedTracks;
+        
+        // 트랙 데이터 가져오기
+        const tracks = await trackService.getTracks(uid, trackIsrcs);
+        
+        // 대상 플랫폼으로 내보내기
+        await platformInstance.exportTracks(tracks, tokens.accessToken);
+        break;
+      }
+
+      case "PLAYLIST": {
+        // contentData에서 모든 플레이리스트 ID 가져오기
+        const playlistIds = contentData.playlists;
+        
+        // 플레이리스트 데이터 가져오기
+        const playlists = await playlistService.getPlaylists(uid, playlistIds);
+        
+        // 대상 플랫폼으로 내보내기
+        await platformInstance.exportPlaylists(playlists, tokens.accessToken);
+        break;
+      }
+
+      case "ALBUM": {
+        // contentData에서 모든 앨범 UPC 가져오기
+        const albumUpcs = contentData.albums;
+        
+        // 앨범 데이터 가져오기
+        const albums = await albumService.getAlbums(uid, albumUpcs);
+        
+        // 대상 플랫폼으로 내보내기
+        await platformInstance.exportAlbums(albums, tokens.accessToken);
+        break;
+      }
+
+
+      default:
+        throw new Error(`Unknown content type: ${contentType}`);
+    }
+
+    logControllerFinish(`exportContent_${contentType}`);
+    return { 
+      success: true, 
+      message: `Successfully exported all ${contentType} to ${platform}` 
+    };
+    
+  } catch (error) {
+    if (error.response?.status === 401) {
+      logControllerError("exportContent", error);
+      return { success: false, message: "Access token is expired or invalid." };
+    }
+    throw error;
+  }
+});
+
 module.exports = {
-  synchContent
+  synchContent,
+  exportContent
 };

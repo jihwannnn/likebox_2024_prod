@@ -18,15 +18,10 @@ const getArtist = onCall({ region: "asia-northeast3" }, async (request) => {
    const uid = auth.uid;
    const artistId = request.data.artistId;
 
-   if (!artistId) {
-     throw new https.HttpsError("invalid-argument", "아티스트 ID가 필요합니다.");
-   }
 
    // 아티스트 조회
    const artist = await artistService.getArtist(uid, artistId);
-   if (!artist) {
-     throw new https.HttpsError("not-found", "아티스트를 찾을 수 없습니다.");
-   }
+
 
    logControllerFinish("getArtist");
 
@@ -51,9 +46,6 @@ const getArtists = onCall({ region: "asia-northeast3" }, async (request) => {
    const uid = auth.uid;
    const artistIds = request.data.artistIds;
 
-   if (!artistIds) {
-     throw new https.HttpsError("invalid-argument", "유효한 아티스트 ID 배열이 필요합니다.");
-   }
 
    // 아티스트 목록 조회
    const artists = await artistService.getArtists(uid, artistIds);

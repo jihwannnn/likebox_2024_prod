@@ -31,6 +31,7 @@ exports.updateSetting = settingController.updateSetting;
 
 // Sync
 exports.synchContent = synchController.synchContent;
+exports.exportContent = synchController.exportContent;
 
 // Token
 exports.generateToken = tokenController.generateToken;
@@ -42,6 +43,7 @@ exports.removeAllTokens = tokenController.removeAllTokens
 
 // Content
 exports.getLikedContent = contentController.getLikedContent
+exports.getContentCount = contentController.getContentCount;
 
 // Playlist
 exports.getPlaylist = playlistController.getPlaylist;

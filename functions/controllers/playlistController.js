@@ -21,15 +21,8 @@ const getPlaylist = onCall({ region: "asia-northeast3" }, async (request) => {
     const uid = auth.uid; 
     const playlistId = request.data.playlistId;
 
-    if (!playlistId) {
-      throw new https.HttpsError("invalid-argument", "플레이리스트 ID가 필요합니다.");
-    }
-
     // 플레이리스트 조회
     const playlist = await playlistService.getPlaylist(uid, playlistId);
-    if (!playlist) {
-      throw new https.HttpsError("not-found", "플레이리스트를 찾을 수 없습니다.");
-    }
 
     // to be fix
     const playlistWithTracks = await addTracksToPlaylist(uid, playlist);
@@ -57,14 +50,8 @@ const getPlaylists = onCall({ region: "asia-northeast3" }, async (request) => {
     const uid = auth.uid;
     const playlistIds = request.data.playlistIds;
 
-    if (!playlistIds) {
-      throw new https.HttpsError("invalid-argument", "유효한 플레이리스트 ID 배열이 필요합니다.");
-    }
-
     // 플레이리스트 목록 조회
     const playlists = await playlistService.getPlaylists(uid, playlistIds);
-
-    
 
     // to be fix
     const playlistsWithTracks = await Promise.all(
