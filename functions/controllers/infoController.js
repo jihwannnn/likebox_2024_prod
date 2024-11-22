@@ -18,12 +18,12 @@ const checkInfo = onCall({ region: "asia-northeast3" }, async (request) => {
 
     const uid = auth.uid;
 
-    // db에서 info 가져오기
-    const info = await infoService.getInfo(uid);
+    // // db에서 info 가져오기
+    // const info = await infoService.getInfo(uid);
 
     logControllerFinish("checkInfo");
 
-    return { success: true, data: info };
+    return { success: true, data: ["SPOTIFY"] };
   } catch (error) {
     logControllerError("checkInfo", error);
     throw error;

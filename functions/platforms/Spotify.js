@@ -7,13 +7,14 @@ const Token = require("../models/Token");
 const { Track, Playlist, Album, Artist } = require("../models/Content");
 const { 
   SPOTIFY_CLIENT_ID, 
-  FOR_SERVER_REDIRECT_URI,
-  FOR_CLIENT_REDIRECT_URI
+  FOR_CLIENT_REDIRECT_URI_1
 } = require("../params");
 const convertDateToInt = require("../utils/convertDateToInt");
 
 const PLATFORM_STRING = "SPOTIFY";
 const LikeBox = "LikeBox";
+
+const curi = "com.example.likebox://callback"
 
 class Spotify extends Platform {
   // 인증 관련 메소드
@@ -24,7 +25,7 @@ class Spotify extends Platform {
       response_type: "code",
       client_id: SPOTIFY_CLIENT_ID.value(),
       scope: scopes,
-      redirect_uri: FOR_CLIENT_REDIRECT_URI.value(),
+      redirect_uri: curi,
     })}`;
   }
 
@@ -33,12 +34,8 @@ class Spotify extends Platform {
     try {
       logPlatformStart(PLATFORM_STRING, "exchangeCodeForToken");
 
-      const clientRedirectUri = FOR_CLIENT_REDIRECT_URI.value();
-      const serverRedirectUri = FOR_SERVER_REDIRECT_URI.value();
-      
       logger.info("Debug URIs:", {
-        clientRedirectUri,
-        serverRedirectUri,
+        curi,
         authCode: authCode?.substring(0, 10) + "..." // 일부만 로깅
       });
 
@@ -47,7 +44,7 @@ class Spotify extends Platform {
         querystring.stringify({
           grant_type: "authorization_code",
           code: authCode,
-          redirect_uri: clientRedirectUri,
+          redirect_uri: curi,
           client_id: SPOTIFY_CLIENT_ID.value(),
           client_secret: process.env.SPOTIFY_CLIENT_SECRET,
         }),
@@ -66,7 +63,7 @@ class Spotify extends Platform {
         logger.error("Spotify API Error Details:", {
           error: error.response.data.error,
           description: error.response.data.error_description,
-          usedRedirectUri: FOR_CLIENT_REDIRECT_URI.value(),
+          usedRedirectUri: curi,
           registeredUris: [
             "com.example.likebox://callback",
             "https://asia-northeast3-likebox-2024-test.cloudfunctions.net/generateToken"

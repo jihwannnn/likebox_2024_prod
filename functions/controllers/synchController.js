@@ -9,6 +9,7 @@ const artistService = require("../services/artistService");
 const userContentDataService = require("../services/userContentDataService");
 const PlatformFactory = require("../platforms/PlatformFactory");
 const { logControllerStart, logControllerFinish, logControllerError } = require("../utils/logger");
+const { UserContentData } = require("../models/UserContentData");
 
 const synchContent = onCall({ region: "asia-northeast3" }, async (request) => {
   try {
@@ -26,6 +27,11 @@ const synchContent = onCall({ region: "asia-northeast3" }, async (request) => {
     const platform = request.data.platform;
 
     let contentData = await userContentDataService.getContentData(uid);
+
+    if(!contentData) {
+      contentData = new UserContentData(uid)
+      await userContentDataService.saveContentData(uid);
+    }
 
     // 플랫폼에서 데이터 가져옴
     const platformInstance = PlatformFactory.getPlatform(platform);

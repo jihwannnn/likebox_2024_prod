@@ -74,7 +74,7 @@ const verifyToken = onCall({ region: "asia-northeast3" }, async (request) => {
       // 새로운 액세스 토큰이 없으면 유저가 인증부터 다시해야 함
       if (!newAccessToken) {
         logControllerFinish("verifyToken");
-        return { success: false, message: "Token refresh failed" };
+        return { success: true, message: "Token refresh failed" };
       }
 
       // 새로운 액세스 토큰을 db에 저장
